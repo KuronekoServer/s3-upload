@@ -29,8 +29,15 @@ fi
 echo "      最新バージョン: ${VERSION}"
 
 # -----------------------------------------------
-# アーキテクチャ検出
+# OS / アーキテクチャ検出
 # -----------------------------------------------
+OS=$(uname -s)
+if [ "${OS}" != "Linux" ]; then
+  echo "このセットアップスクリプトは Linux 専用です: ${OS}" >&2
+  exit 1
+fi
+GOOS="linux"
+
 ARCH=$(uname -m)
 case "${ARCH}" in
   x86_64)          GOARCH="amd64" ;;
@@ -49,13 +56,18 @@ esac
 # -----------------------------------------------
 # ダウンロード
 # -----------------------------------------------
-DOWNLOAD_URL="https://github.com/KuronekoServer/s3-upload/releases/download/${VERSION}/s3-upload-linux-${GOARCH}.tar.gz"
-echo "[1/5] リリースからバイナリをダウンロードしています (${VERSION}, linux/${GOARCH})..."
+DOWNLOAD_URL="https://github.com/KuronekoServer/s3-upload/releases/download/${VERSION}/s3-upload-${GOOS}-${GOARCH}.tar.gz"
+echo "[1/5] リリースからバイナリをダウンロードしています (${VERSION}, ${GOOS}/${GOARCH})..."
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "${TMP_DIR}"' EXIT
 curl -fsSL "${DOWNLOAD_URL}" -o "${TMP_DIR}/s3-upload.tar.gz"
 tar -xzf "${TMP_DIR}/s3-upload.tar.gz" -C "${TMP_DIR}"
-BINARY=$(find "${TMP_DIR}" -maxdepth 2 -type f ! -name "*.tar.gz" | head -1)
+BINARY=$(find "${TMP_DIR}" -maxdepth 2 -type f -name "${SERVICE_NAME}" | head -1)
+if [ -z "${BINARY}" ]; then
+  echo "アーカイブ内に実行バイナリ '${SERVICE_NAME}' が見つかりませんでした。" >&2
+  find "${TMP_DIR}" -maxdepth 2 -type f >&2
+  exit 1
+fi
 chmod +x "${BINARY}"
 echo "      ダウンロード完了: ${BINARY}"
 
