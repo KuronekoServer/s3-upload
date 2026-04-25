@@ -9,20 +9,25 @@ permissions:
 
 jobs:
   build:
-    name: Build (${{ matrix.goos }})
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - goos: linux
-            goarch: amd64
-            artifact: s3-upload-linux-amd64
-            archive: s3-upload-linux-amd64.tar.gz
-          - goos: windows
-            goarch: amd64
-            artifact: s3-upload-windows-amd64
-            binary_ext: .exe
-            archive: s3-upload-windows-amd64.zip
+          # Linux
+          - { goos: linux,   goarch: amd64,   artifact: s3-upload-linux-amd64,   archive: s3-upload-linux-amd64.tar.gz }
+          - { goos: linux,   goarch: arm64,   artifact: s3-upload-linux-arm64,   archive: s3-upload-linux-arm64.tar.gz }
+          - { goos: linux,   goarch: arm,     artifact: s3-upload-linux-arm,     archive: s3-upload-linux-arm.tar.gz }
+          - { goos: linux,   goarch: "386",   artifact: s3-upload-linux-386,     archive: s3-upload-linux-386.tar.gz }
+          - { goos: linux,   goarch: riscv64, artifact: s3-upload-linux-riscv64, archive: s3-upload-linux-riscv64.tar.gz }
+          - { goos: linux,   goarch: ppc64le, artifact: s3-upload-linux-ppc64le, archive: s3-upload-linux-ppc64le.tar.gz }
+          - { goos: linux,   goarch: s390x,   artifact: s3-upload-linux-s390x,   archive: s3-upload-linux-s390x.tar.gz }
+          # macOS
+          - { goos: darwin,  goarch: amd64,   artifact: s3-upload-darwin-amd64,  archive: s3-upload-darwin-amd64.tar.gz }
+          - { goos: darwin,  goarch: arm64,   artifact: s3-upload-darwin-arm64,  archive: s3-upload-darwin-arm64.tar.gz }
+          # Windows
+          - { goos: windows, goarch: amd64,   artifact: s3-upload-windows-amd64, archive: s3-upload-windows-amd64.zip, binary_ext: .exe, zip: true }
+          - { goos: windows, goarch: arm64,   artifact: s3-upload-windows-arm64, archive: s3-upload-windows-arm64.zip, binary_ext: .exe, zip: true }
 
     steps:
       - name: Checkout
@@ -46,12 +51,12 @@ jobs:
       - name: Copy .env.example
         run: cp .env.example ${{ matrix.artifact }}/.env.example
 
-      - name: Archive (Linux)
-        if: matrix.goos == 'linux'
+      - name: Archive (tar.gz)
+        if: ${{ !matrix.zip }}
         run: tar -czf ${{ matrix.archive }} -C ${{ matrix.artifact }} .
 
-      - name: Archive (Windows)
-        if: matrix.goos == 'windows'
+      - name: Archive (zip)
+        if: ${{ matrix.zip }}
         run: |
           cd ${{ matrix.artifact }}
           zip ../${{ matrix.archive }} *

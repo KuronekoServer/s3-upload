@@ -17,10 +17,28 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # -----------------------------------------------
+# アーキテクチャ検出
+# -----------------------------------------------
+ARCH=$(uname -m)
+case "${ARCH}" in
+  x86_64)          GOARCH="amd64" ;;
+  aarch64|arm64)   GOARCH="arm64" ;;
+  armv7l|armv6l)   GOARCH="arm" ;;
+  i386|i686)       GOARCH="386" ;;
+  riscv64)         GOARCH="riscv64" ;;
+  ppc64le)         GOARCH="ppc64le" ;;
+  s390x)           GOARCH="s390x" ;;
+  *)
+    echo "サポートされていないアーキテクチャです: ${ARCH}" >&2
+    exit 1
+    ;;
+esac
+
+# -----------------------------------------------
 # ダウンロード
 # -----------------------------------------------
-DOWNLOAD_URL="https://github.com/KuronekoServer/s3-upload/releases/download/${VERSION}/s3-upload-linux-amd64.tar.gz"
-echo "[1/5] リリースからバイナリをダウンロードしています (${VERSION})..."
+DOWNLOAD_URL="https://github.com/KuronekoServer/s3-upload/releases/download/${VERSION}/s3-upload-linux-${GOARCH}.tar.gz"
+echo "[1/5] リリースからバイナリをダウンロードしています (${VERSION}, linux/${GOARCH})..."
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "${TMP_DIR}"' EXIT
 curl -fsSL "${DOWNLOAD_URL}" -o "${TMP_DIR}/s3-upload.tar.gz"
