@@ -56,8 +56,9 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 curl -fsSL "${DOWNLOAD_URL}" -o "${TMP_DIR}/s3-upload.tar.gz"
 tar -xzf "${TMP_DIR}/s3-upload.tar.gz" -C "${TMP_DIR}"
 BINARY=$(find "${TMP_DIR}" -maxdepth 2 -type f ! -name "*.tar.gz" | head -1)
-cp "${BINARY}" "./${SERVICE_NAME}"
-chmod +x "./${SERVICE_NAME}"
+cp "${BINARY}" "./${SERVICE_NAME}.tmp"
+chmod +x "./${SERVICE_NAME}.tmp"
+mv -f "./${SERVICE_NAME}.tmp" "./${SERVICE_NAME}"
 echo "      ダウンロード完了: ./${SERVICE_NAME}"
 
 # -----------------------------------------------
