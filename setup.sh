@@ -2,7 +2,6 @@
 set -e
 
 SERVICE_NAME="s3-upload"
-VERSION="v1.0.0"
 INSTALL_DIR="/opt/s3-upload-server"
 CONFIG_DIR="/opt/s3-upload-server"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
@@ -15,6 +14,19 @@ if [ "$(id -u)" -ne 0 ]; then
   echo "このスクリプトは root または sudo で実行してください。" >&2
   exit 1
 fi
+
+# -----------------------------------------------
+# 最新バージョンを取得
+# -----------------------------------------------
+echo "最新バージョンを取得しています..."
+VERSION=$(curl -fsSL "https://api.github.com/repos/KuronekoServer/s3-upload/releases/latest" \
+  | grep '"tag_name"' | head -1 \
+  | sed 's/.*"tag_name" *: *"\([^"]*\)".*/\1/')
+if [ -z "${VERSION}" ]; then
+  echo "最新バージョンの取得に失敗しました。" >&2
+  exit 1
+fi
+echo "      最新バージョン: ${VERSION}"
 
 # -----------------------------------------------
 # アーキテクチャ検出
@@ -71,11 +83,14 @@ echo "      インストール先: ${INSTALL_DIR}/${SERVICE_NAME}"
 # 設定ファイル (.env) を作成
 # -----------------------------------------------
 echo "[4/5] 設定ディレクトリを準備しています..."
-# バイナリと同じディレクトリなので mkdir は不要だが念のため
 mkdir -p "${CONFIG_DIR}"
 
 if [ ! -f "${CONFIG_DIR}/.env" ]; then
-  cat > "${CONFIG_DIR}/.env" <<'EOF'
+  # 認証キーをランダム生成
+  AUTH_KEY=$(openssl rand -hex 32 2>/dev/null \
+    || head -c 32 /dev/urandom | od -A n -t x1 | tr -d ' \n')
+
+  cat > "${CONFIG_DIR}/.env" <<EOF
 # S3 接続設定 (必須)
 S3_ACCESS_KEY=your-access-key
 S3_SECRET_KEY=your-secret-key
@@ -96,6 +111,10 @@ PORT=8080
 
 # 1ファイルあたりの並列パート数 (省略時: 8)
 # UPLOAD_CONCURRENCY=8
+
+# ヘッダー認証 (true にすると X-Auth-Key ヘッダーが必須になります)
+AUTH_ENABLED=true
+AUTH_KEY=${AUTH_KEY}
 EOF
   chown root:"${RUN_USER}" "${CONFIG_DIR}/.env"
   chmod 640 "${CONFIG_DIR}/.env"
@@ -103,9 +122,10 @@ EOF
   chown root:"${RUN_USER}" "${CONFIG_DIR}"
   chmod 750 "${CONFIG_DIR}"
   echo "      設定ファイルを作成しました: ${CONFIG_DIR}/.env"
+  echo "      生成された認証キー: ${AUTH_KEY}"
   echo "      *** 起動前に ${CONFIG_DIR}/.env を編集して認証情報を設定してください。 ***"
 else
-  echo "      設定ファイルは既に存在します。スキップします: ${CONFIG_DIR}/.env"
+  echo "      設定ファイルは既に存在します。バイナリのみ更新しました: ${CONFIG_DIR}/.env"
 fi
 
 # -----------------------------------------------

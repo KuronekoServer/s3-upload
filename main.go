@@ -24,10 +24,12 @@ import (
 
 // Server はS3アップローダーとバケット設定を保持します
 type Server struct {
-	uploader  *manager.Uploader
-	bucket    string
-	endpoint  string
-	semaphore chan struct{} // 同時アップロード上限
+	uploader    *manager.Uploader
+	bucket      string
+	endpoint    string
+	semaphore   chan struct{} // 同時アップロード上限
+	authEnabled bool
+	authKey     string
 }
 
 // Response はAPIレスポンスのJSON構造体です
@@ -113,12 +115,37 @@ func newServer() (*Server, error) {
 	log.Printf("アップローダー設定: PartSize=%dMB Concurrency=%d MaxConcurrent=%d (接続プール=%d)",
 		partSizeMB, concurrency, maxConcurrent, maxConns)
 
+	authEnabled := os.Getenv("AUTH_ENABLED") == "true"
+	authKey := os.Getenv("AUTH_KEY")
+	if authEnabled && authKey == "" {
+		return nil, fmt.Errorf("AUTH_ENABLED=true の場合、AUTH_KEY は必須です")
+	}
+
 	return &Server{
-		uploader:  uploader,
-		bucket:    bucket,
-		endpoint:  endpoint,
-		semaphore: make(chan struct{}, maxConcurrent),
+		uploader:    uploader,
+		bucket:      bucket,
+		endpoint:    endpoint,
+		semaphore:   make(chan struct{}, maxConcurrent),
+		authEnabled: authEnabled,
+		authKey:     authKey,
 	}, nil
+}
+
+// authMiddleware は X-Auth-Key ヘッダーを検証するミドルウェアです
+// AUTH_ENABLED=true の場合のみ認証を行います
+func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.authEnabled {
+			key := r.Header.Get("X-Auth-Key")
+			if key == "" || key != s.authKey {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				json.NewEncoder(w).Encode(Response{Success: false, Message: "認証に失敗しました"})
+				return
+			}
+		}
+		next(w, r)
+	}
 }
 
 // uploadHandler は /api/v1/upload エンドポイントのハンドラです
@@ -231,7 +258,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/upload", srv.uploadHandler)
+	mux.HandleFunc("/api/v1/upload", srv.authMiddleware(srv.uploadHandler))
 	mux.HandleFunc("/docs", docsHandler)
 
 	// 大容量ファイルのアップロードに対応するため Read/Write タイムアウトは設定しない

@@ -234,6 +234,12 @@
               <td><span class="required">必須</span></td>
             </tr>
             <tr>
+              <td><span class="tag">X-Auth-Key</span></td>
+              <td>Header</td>
+              <td>認証キー (<code>AUTH_ENABLED=true</code> の場合)</td>
+              <td><span style="color:#fb923c;font-size:0.78rem;">条件付き必須</span></td>
+            </tr>
+            <tr>
               <td><span class="tag">file</span></td>
               <td>Form field</td>
               <td>アップロードするファイル</td>
@@ -248,10 +254,20 @@
 
         <div class="code-block">
           <div class="code-block-header">
-            <span>curl</span>
+            <span>curl (認証なし)</span>
             <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           </div>
           <pre>curl -X POST http://localhost:8080/api/v1/upload \
+  -F "file=@/path/to/video.mp4"</pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span>curl (AUTH_ENABLED=true)</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre>curl -X POST http://localhost:8080/api/v1/upload \
+  -H "X-Auth-Key: your-secret-key" \
   -F "file=@/path/to/video.mp4"</pre>
         </div>
 
@@ -266,6 +282,7 @@ import requests
 with open("/path/to/video.mp4", "rb") as f:
     resp = requests.post(
         "http://localhost:8080/api/v1/upload",
+        headers={"X-Auth-Key": "your-secret-key"},  <span class="hl-cmt"># AUTH_ENABLED=true の場合</span>
         files={"file": f},
     )
 print(resp.json())</pre>
@@ -298,12 +315,24 @@ print(resp.json())</pre>
   <span class="hl-key">"message"</span>: <span class="hl-str">"file フィールドが必要です"</span>
 }</pre>
         </div>
+
+        <div class="code-block">
+          <div class="code-block-header">
+            <span>401 Unauthorized</span>
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          </div>
+          <pre>{
+  <span class="hl-key">"success"</span>: <span class="hl-bool">false</span>,
+  <span class="hl-key">"message"</span>: <span class="hl-str">"認証に失敗しました"</span>
+}</pre>
+        </div>
       </div>
 
       <div class="status-row">
         <div class="status-badge"><span class="status-code s201">201</span> アップロード成功</div>
         <div class="status-badge"><span class="status-code s400">400</span> リクエスト不正</div>
         <div class="status-badge"><span class="status-code s405">405</span> メソッド不正</div>
+        <div class="status-badge"><span class="status-code" style="color:#f87171;">401</span> 認証失敗</div>
         <div class="status-badge"><span class="status-code s500">500</span> アップロード失敗</div>
       </div>
     </div>
@@ -367,6 +396,16 @@ print(resp.json())</pre>
               <td><span class="tag">PORT</span></td>
               <td><code>8080</code></td>
               <td>サーバーのリスニングポート</td>
+            </tr>
+            <tr>
+              <td><span class="tag">AUTH_ENABLED</span></td>
+              <td><code>false</code></td>
+              <td><code>true</code> にすると全リクエストで <code>X-Auth-Key</code> ヘッダーが必須になる</td>
+            </tr>
+            <tr>
+              <td><span class="tag">AUTH_KEY</span></td>
+              <td>&mdash;</td>
+              <td><code>AUTH_ENABLED=true</code> の場合 <span class="required">必須</span> &nbsp;認証キー文字列</td>
             </tr>
           </tbody>
         </table>
