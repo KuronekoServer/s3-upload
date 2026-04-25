@@ -1,478 +1,306 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>S3 Upload API Docs</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S3 Upload API OpenAPI Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --bg: #f7f1e8;
+        --ink: #1d1d1f;
+        --accent: #0b6e4f;
+        --accent-soft: #dcefe7;
+        --panel: rgba(255, 252, 247, 0.84);
+        --line: rgba(29, 29, 31, 0.1);
+        --shadow: 0 24px 80px rgba(76, 56, 35, 0.14);
+      }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
-      line-height: 1.7;
-    }
+      * {
+        box-sizing: border-box;
+      }
 
-    header {
-      background: #1a1d27;
-      border-bottom: 1px solid #2d3148;
-      padding: 1.25rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    header .badge {
-      background: #6366f1;
-      color: #fff;
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 0.2rem 0.55rem;
-      border-radius: 9999px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-    header h1 { font-size: 1.2rem; font-weight: 700; color: #f1f5f9; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(240, 169, 79, 0.26), transparent 28%),
+          radial-gradient(circle at 85% 10%, rgba(11, 110, 79, 0.2), transparent 24%),
+          linear-gradient(180deg, #fbf7f1 0%, var(--bg) 100%);
+      }
 
-    main { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image: linear-gradient(rgba(29, 29, 31, 0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(29, 29, 31, 0.025) 1px, transparent 1px);
+        background-size: 28px 28px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.45));
+      }
 
-    section { margin-bottom: 2.5rem; }
+      .shell {
+        width: min(1200px, calc(100vw - 32px));
+        margin: 24px auto;
+        background: var(--panel);
+        backdrop-filter: blur(14px);
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 28px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        animation: rise 420ms ease-out;
+      }
 
-    h2 {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #94a3b8;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 1rem;
-      padding-bottom: 0.4rem;
-      border-bottom: 1px solid #2d3148;
-    }
+      .hero {
+        position: relative;
+        padding: 40px 32px 28px;
+        border-bottom: 1px solid var(--line);
+        overflow: hidden;
+      }
 
-    /* Endpoint card */
-    .endpoint-card {
-      background: #1a1d27;
-      border: 1px solid #2d3148;
-      border-radius: 10px;
-      overflow: hidden;
-    }
+      .hero::after {
+        content: "";
+        position: absolute;
+        right: -80px;
+        top: -90px;
+        width: 260px;
+        height: 260px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(11, 110, 79, 0.2), rgba(11, 110, 79, 0));
+      }
 
-    .endpoint-header {
-      display: flex;
-      align-items: center;
-      gap: 0.9rem;
-      padding: 1rem 1.25rem;
-      background: #1e2130;
-      border-bottom: 1px solid #2d3148;
-    }
-    .method {
-      background: #22c55e22;
-      color: #22c55e;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 0.2rem 0.6rem;
-      border-radius: 5px;
-      border: 1px solid #22c55e55;
-      letter-spacing: 0.05em;
-    }
-    .path { font-family: "Fira Code", "Cascadia Code", monospace; font-size: 0.95rem; color: #f1f5f9; }
-    .endpoint-desc { padding: 1rem 1.25rem 0; color: #94a3b8; font-size: 0.92rem; }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(11, 110, 79, 0.12);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
 
-    /* Table */
-    .table-wrap { padding: 1.25rem; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-    thead tr { background: #12141f; }
-    th {
-      text-align: left;
-      padding: 0.55rem 0.9rem;
-      color: #64748b;
-      font-weight: 600;
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      border-bottom: 1px solid #2d3148;
-    }
-    td {
-      padding: 0.65rem 0.9rem;
-      border-bottom: 1px solid #1e2232;
-      vertical-align: top;
-    }
-    tr:last-child td { border-bottom: none; }
-    .tag {
-      display: inline-block;
-      background: #312e81;
-      color: #a5b4fc;
-      font-family: monospace;
-      font-size: 0.78rem;
-      padding: 0.1rem 0.45rem;
-      border-radius: 4px;
-    }
-    .required { color: #f87171; font-size: 0.78rem; }
+      h1 {
+        margin: 18px 0 12px;
+        font-size: clamp(32px, 5vw, 54px);
+        line-height: 0.95;
+        letter-spacing: -0.05em;
+        max-width: 720px;
+      }
 
-    /* Code blocks */
-    .code-block {
-      background: #12141f;
-      border: 1px solid #2d3148;
-      border-radius: 8px;
-      overflow: hidden;
-      margin-bottom: 1.25rem;
-    }
-    .code-block-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.55rem 1rem;
-      background: #1a1d27;
-      border-bottom: 1px solid #2d3148;
-      font-size: 0.78rem;
-      color: #64748b;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .copy-btn {
-      background: none;
-      border: 1px solid #2d3148;
-      color: #64748b;
-      font-size: 0.72rem;
-      padding: 0.2rem 0.6rem;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: color 0.15s, border-color 0.15s;
-    }
-    .copy-btn:hover { color: #e2e8f0; border-color: #6366f1; }
-    .copy-btn.copied { color: #22c55e; border-color: #22c55e; }
-    pre {
-      padding: 1rem 1.25rem;
-      font-family: "Fira Code", "Cascadia Code", monospace;
-      font-size: 0.82rem;
-      color: #cbd5e1;
-      overflow-x: auto;
-      white-space: pre;
-    }
-    .hl-key   { color: #93c5fd; }
-    .hl-str   { color: #86efac; }
-    .hl-bool  { color: #fbbf24; }
-    .hl-num   { color: #fb923c; }
-    .hl-null  { color: #94a3b8; }
-    .hl-cmt   { color: #475569; font-style: italic; }
+      .lede {
+        margin: 0;
+        max-width: 760px;
+        font-size: 16px;
+        line-height: 1.7;
+        color: rgba(29, 29, 31, 0.74);
+      }
 
-    /* Status badges */
-    .status-row { display: flex; flex-wrap: wrap; gap: 0.75rem; padding: 1.25rem; border-top: 1px solid #2d3148; }
-    .status-badge {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: #12141f;
-      border: 1px solid #2d3148;
-      border-radius: 6px;
-      padding: 0.45rem 0.9rem;
-      font-size: 0.82rem;
-    }
-    .status-code { font-family: monospace; font-weight: 700; }
-    .s201 { color: #22c55e; }
-    .s400 { color: #f59e0b; }
-    .s405 { color: #f59e0b; }
-    .s500 { color: #f87171; }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 24px;
+      }
 
-    /* Env table */
-    .env-table { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; overflow: hidden; }
+      .meta-chip {
+        padding: 10px 14px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid var(--line);
+        font-size: 13px;
+      }
 
-    /* Footer */
-    footer {
-      text-align: center;
-      color: #334155;
-      font-size: 0.78rem;
-      padding: 2rem 0 1rem;
-    }
-  </style>
-</head>
-<body>
+      .meta-chip strong {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(29, 29, 31, 0.55);
+      }
 
-<header>
-  <span class="badge">v1</span>
-  <h1>S3 Upload API &mdash; ドキュメント</h1>
-</header>
+      .swagger-wrap {
+        padding: 12px;
+      }
 
-<main>
+      #swagger-ui {
+        border-radius: 24px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.7);
+      }
 
-  <!-- Overview -->
-  <section>
-    <h2>概要</h2>
-    <p style="color:#94a3b8;font-size:0.92rem;">
-      S3互換ストレージへファイルをストリーミングアップロードするAPIです。<br>
-      ファイルはディスクに書き出さず直接アップロードされます。大容量ファイルや同時リクエストに対応しています。
-    </p>
-  </section>
+      .swagger-ui .topbar {
+        display: none;
+      }
 
-  <!-- Endpoint -->
-  <section>
-    <h2>エンドポイント</h2>
-    <div class="endpoint-card">
-      <div class="endpoint-header">
-        <span class="method">POST</span>
-        <span class="path">/api/v1/upload</span>
-      </div>
-      <p class="endpoint-desc">ファイル1件をS3の <code style="color:#a5b4fc">uploads/{filename}</code> キーへアップロードします。</p>
+      .swagger-ui,
+      .swagger-ui .info .title,
+      .swagger-ui .opblock-tag,
+      .swagger-ui .opblock .opblock-summary-method,
+      .swagger-ui .btn,
+      .swagger-ui .tab li,
+      .swagger-ui input,
+      .swagger-ui select,
+      .swagger-ui textarea {
+        font-family: "Space Grotesk", sans-serif;
+      }
 
-      <div class="table-wrap">
-        <p style="font-size:0.8rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem;">リクエスト</p>
-        <table>
-          <thead>
-            <tr>
-              <th>ヘッダー / フィールド</th>
-              <th>種別</th>
-              <th>値</th>
-              <th>必須</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><span class="tag">Content-Type</span></td>
-              <td>Header</td>
-              <td><code style="color:#a5b4fc">multipart/form-data</code></td>
-              <td><span class="required">必須</span></td>
-            </tr>
-            <tr>
-              <td><span class="tag">X-Auth-Key</span></td>
-              <td>Header</td>
-              <td>認証キー (<code>AUTH_ENABLED=true</code> の場合)</td>
-              <td><span style="color:#fb923c;font-size:0.78rem;">条件付き必須</span></td>
-            </tr>
-            <tr>
-              <td><span class="tag">file</span></td>
-              <td>Form field</td>
-              <td>アップロードするファイル</td>
-              <td><span class="required">必須</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      .swagger-ui .scheme-container {
+        background: transparent;
+        box-shadow: none;
+        padding: 24px 24px 0;
+      }
 
-      <div style="padding: 0 1.25rem 1.25rem;">
-        <p style="font-size:0.8rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.8rem;">リクエスト例</p>
+      .swagger-ui .info {
+        margin: 0;
+        padding: 8px 24px 0;
+      }
 
-        <div class="code-block">
-          <div class="code-block-header">
-            <span>curl (認証なし)</span>
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      .swagger-ui .info .title {
+        color: var(--ink);
+        font-size: clamp(28px, 4vw, 42px);
+        letter-spacing: -0.04em;
+      }
+
+      .swagger-ui .info p,
+      .swagger-ui .markdown p,
+      .swagger-ui .markdown li,
+      .swagger-ui .responses-inner h4,
+      .swagger-ui .response-col_status,
+      .swagger-ui .response-col_description {
+        color: rgba(29, 29, 31, 0.75);
+      }
+
+      .swagger-ui .opblock-tag {
+        border-bottom-color: var(--line);
+        color: var(--ink);
+      }
+
+      .swagger-ui .opblock {
+        border-radius: 18px;
+        overflow: hidden;
+        border-width: 1px;
+        box-shadow: 0 16px 36px rgba(29, 29, 31, 0.06);
+      }
+
+      .swagger-ui .opblock.opblock-post {
+        border-color: rgba(11, 110, 79, 0.25);
+        background: rgba(11, 110, 79, 0.06);
+      }
+
+      .swagger-ui .opblock.opblock-post .opblock-summary {
+        border-color: rgba(11, 110, 79, 0.18);
+      }
+
+      .swagger-ui .opblock .opblock-summary-method {
+        border-radius: 999px;
+        background: var(--accent);
+        min-width: 72px;
+      }
+
+      .swagger-ui .btn.authorize {
+        border-color: rgba(11, 110, 79, 0.22);
+        color: var(--accent);
+      }
+
+      .swagger-ui .btn.execute {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .swagger-ui .btn.execute:hover {
+        background: #09583f;
+        border-color: #09583f;
+      }
+
+      .swagger-ui .responses-table .response-undocumented {
+        color: rgba(29, 29, 31, 0.65);
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 720px) {
+        .shell {
+          width: min(100vw - 16px, 100%);
+          margin: 8px auto;
+          border-radius: 18px;
+        }
+
+        .hero {
+          padding: 28px 20px 20px;
+        }
+
+        .swagger-wrap {
+          padding: 8px;
+        }
+
+        .swagger-ui .scheme-container,
+        .swagger-ui .info {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <section class="hero">
+        <span class="eyebrow">OpenAPI 3.1</span>
+        <h1>S3 Upload API</h1>
+        <p class="lede">実装に合わせた OpenAPI 仕様を /openapi.json として配信し、このページでは Swagger UI で閲覧できます。Try it out から multipart/form-data のアップロードもそのまま試せます。</p>
+        <div class="meta">
+          <div class="meta-chip">
+            <strong>Spec</strong>
+            /openapi.json
           </div>
-          <pre>curl -X POST http://localhost:8080/api/v1/upload \
-  -F "file=@/path/to/video.mp4"</pre>
-        </div>
-
-        <div class="code-block">
-          <div class="code-block-header">
-            <span>curl (AUTH_ENABLED=true)</span>
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <div class="meta-chip">
+            <strong>Endpoint</strong>
+            POST /api/v1/upload
           </div>
-          <pre>curl -X POST http://localhost:8080/api/v1/upload \
-  -H "X-Auth-Key: your-secret-key" \
-  -F "file=@/path/to/video.mp4"</pre>
-        </div>
-
-        <div class="code-block">
-          <div class="code-block-header">
-            <span>Python (requests)</span>
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <div class="meta-chip">
+            <strong>Auth</strong>
+            X-Auth-Key when AUTH_ENABLED=true
           </div>
-          <pre><span class="hl-cmt"># pip install requests</span>
-import requests
-
-with open("/path/to/video.mp4", "rb") as f:
-    resp = requests.post(
-        "http://localhost:8080/api/v1/upload",
-        headers={"X-Auth-Key": "your-secret-key"},  <span class="hl-cmt"># AUTH_ENABLED=true の場合</span>
-        files={"file": f},
-    )
-print(resp.json())</pre>
         </div>
-      </div>
-
-      <div style="padding: 0 1.25rem 1.25rem;">
-        <p style="font-size:0.8rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.8rem;">レスポンス例</p>
-
-        <div class="code-block">
-          <div class="code-block-header">
-            <span>201 Created</span>
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-          </div>
-          <pre>{
-  <span class="hl-key">"success"</span>: <span class="hl-bool">true</span>,
-  <span class="hl-key">"message"</span>: <span class="hl-str">"アップロードが完了しました"</span>,
-  <span class="hl-key">"url"</span>:     <span class="hl-str">"https://s3.example.com/bucket/uploads/video.mp4"</span>,
-  <span class="hl-key">"key"</span>:     <span class="hl-str">"uploads/video.mp4"</span>
-}</pre>
-        </div>
-
-        <div class="code-block">
-          <div class="code-block-header">
-            <span>400 Bad Request</span>
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-          </div>
-          <pre>{
-  <span class="hl-key">"success"</span>: <span class="hl-bool">false</span>,
-  <span class="hl-key">"message"</span>: <span class="hl-str">"file フィールドが必要です"</span>
-}</pre>
-        </div>
-
-        <div class="code-block">
-          <div class="code-block-header">
-            <span>401 Unauthorized</span>
-            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-          </div>
-          <pre>{
-  <span class="hl-key">"success"</span>: <span class="hl-bool">false</span>,
-  <span class="hl-key">"message"</span>: <span class="hl-str">"認証に失敗しました"</span>
-}</pre>
-        </div>
-      </div>
-
-      <div class="status-row">
-        <div class="status-badge"><span class="status-code s201">201</span> アップロード成功</div>
-        <div class="status-badge"><span class="status-code s400">400</span> リクエスト不正</div>
-        <div class="status-badge"><span class="status-code s405">405</span> メソッド不正</div>
-        <div class="status-badge"><span class="status-code" style="color:#f87171;">401</span> 認証失敗</div>
-        <div class="status-badge"><span class="status-code s500">500</span> アップロード失敗</div>
-      </div>
+      </section>
+      <section class="swagger-wrap">
+        <div id="swagger-ui"></div>
+      </section>
     </div>
-  </section>
 
-  <!-- Environment Variables -->
-  <section>
-    <h2>環境変数</h2>
-    <div class="env-table">
-      <div class="table-wrap" style="padding:0;">
-        <table>
-          <thead>
-            <tr>
-              <th>変数名</th>
-              <th>デフォルト</th>
-              <th>説明</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><span class="tag">S3_ACCESS_KEY</span></td>
-              <td>&mdash;</td>
-              <td><span class="required">必須</span> &nbsp;S3 アクセスキー</td>
-            </tr>
-            <tr>
-              <td><span class="tag">S3_SECRET_KEY</span></td>
-              <td>&mdash;</td>
-              <td><span class="required">必須</span> &nbsp;S3 シークレットキー</td>
-            </tr>
-            <tr>
-              <td><span class="tag">S3_BUCKET</span></td>
-              <td>&mdash;</td>
-              <td><span class="required">必須</span> &nbsp;対象バケット名</td>
-            </tr>
-            <tr>
-              <td><span class="tag">S3_ENDPOINT</span></td>
-              <td>&mdash;</td>
-              <td><span class="required">必須</span> &nbsp;S3互換ストレージのエンドポイント URL</td>
-            </tr>
-            <tr>
-              <td><span class="tag">S3_REGION</span></td>
-              <td><code>us-east-1</code></td>
-              <td>リージョン</td>
-            </tr>
-            <tr>
-              <td><span class="tag">MAX_CONCURRENT_UPLOADS</span></td>
-              <td><code>10</code></td>
-              <td>同時アップロード上限数</td>
-            </tr>
-            <tr>
-              <td><span class="tag">UPLOAD_PART_SIZE_MB</span></td>
-              <td><code>32</code></td>
-              <td>パートサイズ (MB)。大きいほど高速だがメモリ使用量が増加</td>
-            </tr>
-            <tr>
-              <td><span class="tag">UPLOAD_CONCURRENCY</span></td>
-              <td><code>8</code></td>
-              <td>1ファイルあたりの並列パート数。帯域が広い場合は増やすと効果的</td>
-            </tr>
-            <tr>
-              <td><span class="tag">PORT</span></td>
-              <td><code>8080</code></td>
-              <td>サーバーのリスニングポート</td>
-            </tr>
-            <tr>
-              <td><span class="tag">AUTH_ENABLED</span></td>
-              <td><code>false</code></td>
-              <td><code>true</code> にすると全リクエストで <code>X-Auth-Key</code> ヘッダーが必須になる</td>
-            </tr>
-            <tr>
-              <td><span class="tag">AUTH_KEY</span></td>
-              <td>&mdash;</td>
-              <td><code>AUTH_ENABLED=true</code> の場合 <span class="required">必須</span> &nbsp;認証キー文字列</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- Technical Notes -->
-  <section>
-    <h2>技術仕様</h2>
-    <div class="env-table">
-      <div class="table-wrap" style="padding:0;">
-        <table>
-          <thead>
-            <tr><th>項目</th><th>値</th><th>説明</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>アップロード方式</td>
-              <td>マルチパートストリーミング</td>
-              <td>ディスク書き出しなし。受信しながらS3互換ストレージへ転送</td>
-            </tr>
-            <tr>
-              <td>パートサイズ</td>
-              <td>32 MB</td>
-              <td>S3マルチパートアップロードの分割単位（<code>UPLOAD_PART_SIZE_MB</code>で変更可）</td>
-            </tr>
-            <tr>
-              <td>並列パート数</td>
-              <td>8</td>
-              <td>1ファイルあたりの同時転送パート数（<code>UPLOAD_CONCURRENCY</code>で変更可）</td>
-            </tr>
-            <tr>
-              <td>同時リクエスト</td>
-              <td>最大 MAX_CONCURRENT_UPLOADS</td>
-              <td>超過リクエストはキューで待機</td>
-            </tr>
-            <tr>
-              <td>ストレージキー</td>
-              <td><code>uploads/{元のファイル名}</code></td>
-              <td>同名ファイルは上書きされます</td>
-            </tr>
-            <tr>
-              <td>ReadHeaderTimeout</td>
-              <td>30 秒</td>
-              <td>スローロリス攻撃対策。ボディ転送にはタイムアウトなし</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-</main>
-
-<footer>S3 Upload API &mdash; Powered by Go &amp KuronekoServer</footer>
-
-<script>
-  function copyCode(btn) {
-    const pre = btn.closest('.code-block').querySelector('pre');
-    const text = pre.innerText;
-    navigator.clipboard.writeText(text).then(() => {
-      btn.textContent = 'Copied!';
-      btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
-    });
-  }
-</script>
-</body>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      window.ui = SwaggerUIBundle({
+        url: "/openapi.json",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        docExpansion: "list",
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth: 2,
+        displayRequestDuration: true,
+        persistAuthorization: true,
+        tryItOutEnabled: true
+      });
+    </script>
+  </body>
 </html>

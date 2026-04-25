@@ -260,6 +260,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/upload", srv.authMiddleware(srv.uploadHandler))
 	mux.HandleFunc("/docs", docsHandler)
+	mux.HandleFunc("/openapi.json", openAPIHandler)
 
 	// 大容量ファイルのアップロードに対応するため Read/Write タイムアウトは設定しない
 	// ReadHeaderTimeout のみ設定してスローロリス攻撃を防ぐ

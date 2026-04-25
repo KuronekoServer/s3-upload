@@ -1,0 +1,215 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "S3 Upload API",
+    "version": "1.0.0",
+    "description": "S3互換ストレージへファイルをストリーミングアップロードするAPIです。ファイルはディスクに書き出さず直接アップロードされます。"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "upload",
+      "description": "Streaming file upload"
+    }
+  ],
+  "paths": {
+    "/api/v1/upload": {
+      "post": {
+        "tags": [
+          "upload"
+        ],
+        "summary": "Upload a file to S3-compatible storage",
+        "description": "multipart/form-data の file フィールドを受け取り、uploads/{filename} キーへストリーミングアップロードします。AUTH_ENABLED=true の場合は X-Auth-Key ヘッダーが必要です。",
+        "operationId": "uploadFile",
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "アップロードするファイル"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Upload succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "success": true,
+                      "message": "アップロードが完了しました",
+                      "url": "https://s3.example.com/bucket/uploads/video.mp4",
+                      "key": "uploads/video.mp4"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid multipart request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingFile": {
+                    "value": {
+                      "success": false,
+                      "message": "file フィールドが必要です"
+                    }
+                  },
+                  "invalidContentType": {
+                    "value": {
+                      "success": false,
+                      "message": "Content-Type は multipart/form-data である必要があります"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unauthorized": {
+                    "value": {
+                      "success": false,
+                      "message": "認証に失敗しました"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "methodNotAllowed": {
+                    "value": {
+                      "success": false,
+                      "message": "POST メソッドのみ許可されています"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Upload failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "uploadFailed": {
+                    "value": {
+                      "success": false,
+                      "message": "アップロードに失敗しました"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Auth-Key",
+        "description": "AUTH_ENABLED=true の場合に必要な API キーです。"
+      }
+    },
+    "schemas": {
+      "UploadResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "message",
+          "url",
+          "key"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "アップロードが完了しました"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://s3.example.com/bucket/uploads/video.mp4"
+          },
+          "key": {
+            "type": "string",
+            "example": "uploads/video.mp4"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "file フィールドが必要です"
+          }
+        }
+      }
+    }
+  }
+}
