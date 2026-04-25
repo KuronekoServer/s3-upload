@@ -2,6 +2,7 @@
 set -e
 
 SERVICE_NAME="s3-upload"
+VERSION="v1.0.0"
 INSTALL_DIR="/opt/s3-upload-server"
 CONFIG_DIR="/opt/s3-upload-server"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
@@ -16,11 +17,18 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # -----------------------------------------------
-# ビルド
+# ダウンロード
 # -----------------------------------------------
-echo "[1/5] バイナリをビルドしています..."
-go build -o "${SERVICE_NAME}" .
-echo "      ビルド完了: ./${SERVICE_NAME}"
+DOWNLOAD_URL="https://github.com/KuronekoServer/s3-upload/releases/download/${VERSION}/s3-upload-linux-amd64.tar.gz"
+echo "[1/5] リリースからバイナリをダウンロードしています (${VERSION})..."
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "${TMP_DIR}"' EXIT
+curl -fsSL "${DOWNLOAD_URL}" -o "${TMP_DIR}/s3-upload.tar.gz"
+tar -xzf "${TMP_DIR}/s3-upload.tar.gz" -C "${TMP_DIR}"
+BINARY=$(find "${TMP_DIR}" -maxdepth 2 -type f ! -name "*.tar.gz" | head -1)
+cp "${BINARY}" "./${SERVICE_NAME}"
+chmod +x "./${SERVICE_NAME}"
+echo "      ダウンロード完了: ./${SERVICE_NAME}"
 
 # -----------------------------------------------
 # ユーザー作成
