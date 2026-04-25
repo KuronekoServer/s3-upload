@@ -56,10 +56,8 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 curl -fsSL "${DOWNLOAD_URL}" -o "${TMP_DIR}/s3-upload.tar.gz"
 tar -xzf "${TMP_DIR}/s3-upload.tar.gz" -C "${TMP_DIR}"
 BINARY=$(find "${TMP_DIR}" -maxdepth 2 -type f ! -name "*.tar.gz" | head -1)
-cp "${BINARY}" "./${SERVICE_NAME}.tmp"
-chmod +x "./${SERVICE_NAME}.tmp"
-mv -f "./${SERVICE_NAME}.tmp" "./${SERVICE_NAME}"
-echo "      ダウンロード完了: ./${SERVICE_NAME}"
+chmod +x "${BINARY}"
+echo "      ダウンロード完了: ${BINARY}"
 
 # -----------------------------------------------
 # ユーザー作成
@@ -77,7 +75,7 @@ fi
 # -----------------------------------------------
 echo "[3/5] バイナリをインストールしています..."
 mkdir -p "${INSTALL_DIR}"
-install -o root -g "${RUN_USER}" -m 750 "./${SERVICE_NAME}" "${INSTALL_DIR}/${SERVICE_NAME}"
+install -o root -g "${RUN_USER}" -m 750 "${BINARY}" "${INSTALL_DIR}/${SERVICE_NAME}"
 echo "      インストール先: ${INSTALL_DIR}/${SERVICE_NAME}"
 
 # -----------------------------------------------
@@ -85,6 +83,18 @@ echo "      インストール先: ${INSTALL_DIR}/${SERVICE_NAME}"
 # -----------------------------------------------
 echo "[4/5] 設定ディレクトリを準備しています..."
 mkdir -p "${CONFIG_DIR}"
+
+# .env に不足しているキーを末尾に追記するヘルパー関数
+_env_add_if_missing() {
+  local key="$1"
+  local line="$2"
+  if ! grep -qE "^#?[[:space:]]*${key}[[:space:]]*=" "${CONFIG_DIR}/.env" 2>/dev/null; then
+    echo "${line}" >> "${CONFIG_DIR}/.env"
+    echo "      追加: ${line}"
+    return 0
+  fi
+  return 1
+}
 
 if [ ! -f "${CONFIG_DIR}/.env" ]; then
   # 認証キーをランダム生成
@@ -126,7 +136,31 @@ EOF
   echo "      生成された認証キー: ${AUTH_KEY}"
   echo "      *** 起動前に ${CONFIG_DIR}/.env を編集して認証情報を設定してください。 ***"
 else
-  echo "      設定ファイルは既に存在します。バイナリのみ更新しました: ${CONFIG_DIR}/.env"
+  echo "      設定ファイルは既に存在します。不足しているキーを確認しています..."
+  ADDED=0
+  _env_add_if_missing "S3_ACCESS_KEY"          "S3_ACCESS_KEY=your-access-key"        && ADDED=$((ADDED+1))
+  _env_add_if_missing "S3_SECRET_KEY"          "S3_SECRET_KEY=your-secret-key"        && ADDED=$((ADDED+1))
+  _env_add_if_missing "S3_ENDPOINT"            "S3_ENDPOINT=https://your-s3-endpoint" && ADDED=$((ADDED+1))
+  _env_add_if_missing "S3_BUCKET"              "S3_BUCKET=your-bucket-name"           && ADDED=$((ADDED+1))
+  _env_add_if_missing "S3_REGION"              "S3_REGION=us-east-1"                  && ADDED=$((ADDED+1))
+  _env_add_if_missing "PORT"                   "PORT=8080"                            && ADDED=$((ADDED+1))
+  _env_add_if_missing "MAX_CONCURRENT_UPLOADS" "# MAX_CONCURRENT_UPLOADS=10"          && ADDED=$((ADDED+1))
+  _env_add_if_missing "UPLOAD_PART_SIZE_MB"    "# UPLOAD_PART_SIZE_MB=32"             && ADDED=$((ADDED+1))
+  _env_add_if_missing "UPLOAD_CONCURRENCY"     "# UPLOAD_CONCURRENCY=8"               && ADDED=$((ADDED+1))
+  _env_add_if_missing "AUTH_ENABLED"           "AUTH_ENABLED=true"                    && ADDED=$((ADDED+1))
+  if ! grep -qE "^#?[[:space:]]*AUTH_KEY[[:space:]]*=" "${CONFIG_DIR}/.env" 2>/dev/null; then
+    NEW_AUTH_KEY=$(openssl rand -hex 32 2>/dev/null \
+      || head -c 32 /dev/urandom | od -A n -t x1 | tr -d ' \n')
+    echo "AUTH_KEY=${NEW_AUTH_KEY}" >> "${CONFIG_DIR}/.env"
+    echo "      追加: AUTH_KEY=<generated>"
+    ADDED=$((ADDED+1))
+  fi
+  if [ "${ADDED}" -gt 0 ]; then
+    echo "      ${ADDED} 件のキーを追加しました。"
+    echo "      *** 追加されたキーを確認・設定してください: ${CONFIG_DIR}/.env ***"
+  else
+    echo "      設定ファイルは最新です。"
+  fi
 fi
 
 # -----------------------------------------------
