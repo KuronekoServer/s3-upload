@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "S3 Upload API",
-    "version": "1.2.0",
-    "description": "S3互換ストレージへファイルをストリーミングアップロードし、一覧取得とファイルまたはディレクトリ削除を行える API です。アップロード時は path クエリで保存先ディレクトリを指定でき、ファイル名は変更されません。PUBLIC_BASE_URL を設定すると返却される url はその公開ドメインを基準に組み立てられます。"
+    "version": "1.0.2",
+    "description": "S3互換ストレージへファイルをストリーミングアップロードし、一覧取得とファイルまたはディレクトリ削除を行える API です。"
   },
   "servers": [
     {
@@ -13,19 +13,15 @@
   ],
   "tags": [
     {
-      "name": "upload",
-      "description": "Streaming file upload"
-    },
-    {
       "name": "files",
-      "description": "List and delete files or directories"
+      "description": "Upload, list, and delete files or directories"
     }
   ],
   "paths": {
     "/api/v1/upload": {
       "post": {
         "tags": [
-          "upload"
+          "files"
         ],
         "summary": "Upload one or more files",
         "description": "multipart/form-data の file または files フィールドを受け取り、path クエリで指定したディレクトリ配下へ元のファイル名のままストリーミングアップロードします。path 未指定または ./ の場合はバケット直下へ保存されます。files[] や同名 file フィールドの繰り返しも受け付けます。AUTH_ENABLED=true の場合は X-Auth-Key ヘッダーが必要です。",
@@ -318,15 +314,13 @@
             }
           }
         }
-      }
-    },
-    "/api/v1/files/{key}": {
+      },
       "delete": {
         "tags": [
           "files"
         ],
         "summary": "Delete a file or directory",
-        "description": "指定された key がファイルなら単体削除し、ディレクトリ相当の prefix なら配下をまとめて削除します。末尾に / が付いている場合はディレクトリとして扱います。ネストしたパスや空白を含む場合は URL エンコードしてください。AUTH_ENABLED=true の場合は X-Auth-Key ヘッダーが必要です。",
+        "description": "path クエリに削除対象パスを入れて呼び出します。ファイルとディレクトリで入口は共通で、末尾に / を付けるとディレクトリとして明示できます。末尾に / がなくても、配下にオブジェクトがあればディレクトリとして自動判定します。AUTH_ENABLED=true の場合は X-Auth-Key ヘッダーが必要です。",
         "operationId": "deleteFileOrDirectory",
         "security": [
           {},
@@ -336,14 +330,14 @@
         ],
         "parameters": [
           {
-            "name": "key",
-            "in": "path",
+            "name": "path",
+            "in": "query",
             "required": true,
-            "description": "削除対象のファイル key またはディレクトリ prefix。例: video.mp4 または archive",
+            "description": "削除対象パス。ファイルまたはディレクトリをそのまま指定します。例: archive/2026/video.mp4 または archive/2026/。",
             "schema": {
               "type": "string"
             },
-            "example": "video.mp4"
+            "example": "archive/2026/"
           }
         ],
         "responses": {
@@ -378,23 +372,35 @@
             }
           },
           "400": {
-            "description": "Invalid key",
+            "description": "Invalid delete target",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 },
                 "examples": {
-                  "missingKey": {
+                  "missingTarget": {
                     "value": {
                       "success": false,
-                      "message": "削除対象の key が必要です"
+                      "message": "path クエリが必要です"
                     }
                   },
-                  "invalidKey": {
+                  "invalidPath": {
                     "value": {
                       "success": false,
-                      "message": "削除対象の key が不正です"
+                      "message": "削除対象の path クエリが不正です"
+                    }
+                  },
+                  "usePathQuery": {
+                    "value": {
+                      "success": false,
+                      "message": "削除には path クエリを使ってください"
+                    }
+                  },
+                  "mixedTarget": {
+                    "value": {
+                      "success": false,
+                      "message": "削除対象は path クエリだけを指定してください"
                     }
                   }
                 }
@@ -437,12 +443,6 @@
                     "value": {
                       "success": false,
                       "message": "ディレクトリの削除に失敗しました"
-                    }
-                  },
-                  "checkFailed": {
-                    "value": {
-                      "success": false,
-                      "message": "削除対象の確認に失敗しました"
                     }
                   }
                 }

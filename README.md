@@ -10,7 +10,7 @@ multipart/form-data で受けた file を、必要なら指定したディレク
 - path を指定するとそのディレクトリ配下へ、未指定ならバケット直下へ保存
 - ファイル名は変えない
 - GET /api/v1/files で JSON の一覧取得
-- DELETE /api/v1/files/{key} で ファイルとディレクトリの両方を削除
+- DELETE /api/v1/files?path=... で ファイルまたはディレクトリを削除
 - 必要なら X-Auth-Key ヘッダーで簡単な認証
 
 ## ローカルで動かす
@@ -88,17 +88,19 @@ curl http://localhost:8080/api/v1/files
 
 一覧は JSON で返り、ディレクトリは isDirectory=true になります。
 
-ファイル削除は upload や一覧で返ってきた key をそのまま使えます。
+削除は path クエリに対象パスをそのまま入れる形を基本にします。
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/files/sample.mp4
+curl -X DELETE "http://localhost:8080/api/v1/files?path=sample.mp4"
 ```
 
-ディレクトリ削除は prefix を指定します。archive 配下があればまとめて消します。
+ディレクトリ削除も同じです。末尾に / を付けるとディレクトリとして明示できます。
 
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/files/archive
+curl -X DELETE "http://localhost:8080/api/v1/files?path=archive/2026/"
 ```
+
+path クエリはファイルでもディレクトリでも同じ入口なので、ネストしたパスでもそのまま指定できます。末尾に / がない場合でも、配下にオブジェクトがあればディレクトリとして自動判定します。
 
 認証ありならヘッダーを足します。
 

@@ -118,6 +118,7 @@ func New() (*Server, error) {
 func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/upload", s.authMiddleware(s.uploadHandler))
 	mux.HandleFunc("GET /api/v1/files", s.authMiddleware(s.listFilesHandler))
+	mux.HandleFunc("DELETE /api/v1/files", s.authMiddleware(s.deleteFileQueryHandler))
 	mux.HandleFunc("DELETE /api/v1/files/{key...}", s.authMiddleware(s.deleteFileHandler))
 }
 

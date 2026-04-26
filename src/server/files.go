@@ -12,6 +12,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
+const (
+	deletePathQuery     = "path"
+	deleteKindFile      = "file"
+	deleteKindDirectory = "directory"
+)
+
+type deleteTarget struct {
+	Target string
+	Kind   string
+}
+
 // listFilesHandler はバケット内のファイル一覧を JSON で返します。
 func (s *Server) listFilesHandler(w http.ResponseWriter, r *http.Request) {
 	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
@@ -91,6 +102,54 @@ func (s *Server) listFilesHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func parseDeletePathQuery(values url.Values) (string, string) {
+	rawPath := strings.TrimSpace(values.Get(deletePathQuery))
+	if rawPath == "" {
+		return "", ""
+	}
+
+	cleanedRawPath := strings.ReplaceAll(rawPath, "\\", "/")
+	if normalizeObjectKey(cleanedRawPath) == "" {
+		return "", "削除対象の path クエリが不正です"
+	}
+
+	return cleanedRawPath, ""
+}
+
+func hasLegacyDeleteTarget(values url.Values, header http.Header) bool {
+	return strings.TrimSpace(header.Get("Path")) != "" ||
+		strings.TrimSpace(values.Get("key")) != "" ||
+		strings.TrimSpace(values.Get("prefix")) != ""
+}
+
+// deleteFileQueryHandler は path クエリで指定した削除対象を削除します。
+func (s *Server) deleteFileQueryHandler(w http.ResponseWriter, r *http.Request) {
+	values := r.URL.Query()
+	queryPath, message := parseDeletePathQuery(values)
+	if message != "" {
+		writeJSON(w, http.StatusBadRequest, APIResponse{Success: false, Message: message})
+		return
+	}
+
+	legacyTargetSpecified := hasLegacyDeleteTarget(values, r.Header)
+	if queryPath == "" {
+		if legacyTargetSpecified {
+			writeJSON(w, http.StatusBadRequest, APIResponse{Success: false, Message: "削除には path クエリを使ってください"})
+			return
+		}
+
+		writeJSON(w, http.StatusBadRequest, APIResponse{Success: false, Message: "path クエリが必要です"})
+		return
+	}
+
+	if legacyTargetSpecified {
+		writeJSON(w, http.StatusBadRequest, APIResponse{Success: false, Message: "削除対象は path クエリだけを指定してください"})
+		return
+	}
+
+	s.deleteAutoTarget(w, r, queryPath)
+}
+
 // deleteFileHandler はファイルまたはディレクトリを削除します。
 func (s *Server) deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 	rawKey, err := url.PathUnescape(r.PathValue("key"))
@@ -99,7 +158,10 @@ func (s *Server) deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cleanedRawKey := strings.ReplaceAll(rawKey, "\\", "/")
+	s.deleteAutoTarget(w, r, strings.ReplaceAll(rawKey, "\\", "/"))
+}
+
+func (s *Server) deleteAutoTarget(w http.ResponseWriter, r *http.Request, cleanedRawKey string) {
 	key := normalizeObjectKey(cleanedRawKey)
 	if key == "" {
 		writeJSON(w, http.StatusBadRequest, APIResponse{Success: false, Message: "削除対象の key が必要です"})
@@ -107,7 +169,7 @@ func (s *Server) deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasSuffix(cleanedRawKey, "/") {
-		s.deleteDirectory(w, r, normalizeDirectoryKey(cleanedRawKey))
+		s.deleteTarget(w, r, deleteTarget{Target: normalizeDirectoryKey(cleanedRawKey), Kind: deleteKindDirectory})
 		return
 	}
 
@@ -119,11 +181,24 @@ func (s *Server) deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if hasChildren {
-		s.deleteDirectory(w, r, directoryKey)
+		s.deleteTarget(w, r, deleteTarget{Target: directoryKey, Kind: deleteKindDirectory})
 		return
 	}
 
-	_, err = s.s3Client.DeleteObject(r.Context(), &s3.DeleteObjectInput{
+	s.deleteTarget(w, r, deleteTarget{Target: key, Kind: deleteKindFile})
+}
+
+func (s *Server) deleteTarget(w http.ResponseWriter, r *http.Request, target deleteTarget) {
+	switch target.Kind {
+	case deleteKindDirectory:
+		s.deleteDirectory(w, r, target.Target)
+	default:
+		s.deleteObject(w, r, target.Target)
+	}
+}
+
+func (s *Server) deleteObject(w http.ResponseWriter, r *http.Request, key string) {
+	_, err := s.s3Client.DeleteObject(r.Context(), &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
 	})
@@ -137,7 +212,7 @@ func (s *Server) deleteFileHandler(w http.ResponseWriter, r *http.Request) {
 		Success:      true,
 		Message:      "ファイルを削除しました",
 		Target:       key,
-		Kind:         "file",
+		Kind:         deleteKindFile,
 		DeletedCount: 1,
 	})
 }
@@ -159,7 +234,7 @@ func (s *Server) deleteDirectory(w http.ResponseWriter, r *http.Request, directo
 		Success:      true,
 		Message:      "ディレクトリを削除しました",
 		Target:       directoryKey,
-		Kind:         "directory",
+		Kind:         deleteKindDirectory,
 		DeletedCount: deletedCount,
 	})
 }
