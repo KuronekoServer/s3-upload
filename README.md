@@ -2,11 +2,15 @@
 
 S3互換ストレージにファイルをそのまま投げるための小さな HTTP サーバーです。
 
-multipart/form-data で受けた file を uploads/{filename} に流し込みます。
+multipart/form-data で受けた file を、必要なら指定したディレクトリ配下へ元のファイル名のまま流し込みます。
 
 ## ざっくりできること
 
-- POST /api/v1/upload で ファイルアップロード
+- POST /api/v1/upload で 単一または複数ファイルのアップロード
+- path を指定するとそのディレクトリ配下へ、未指定ならバケット直下へ保存
+- ファイル名は変えない
+- GET /api/v1/files で JSON の一覧取得
+- DELETE /api/v1/files/{key} で ファイルとディレクトリの両方を削除
 - 必要なら X-Auth-Key ヘッダーで簡単な認証
 
 ## ローカルで動かす
@@ -44,6 +48,7 @@ go build -o s3-upload.exe
 .env.example で詳細は確認をお願いします。
 
 - S3_REGION: 未指定なら us-east-1
+- PUBLIC_BASE_URL: レスポンスの url に使う公開ドメイン。例: https://s3.krnk.org
 - PORT: 未指定なら 8080
 - MAX_CONCURRENT_UPLOADS: 同時アップロード数。未指定なら 10
 - UPLOAD_PART_SIZE_MB: 1 パートのサイズ。未指定なら 32
@@ -60,6 +65,41 @@ curl -X POST http://localhost:8080/api/v1/upload \
   -F "file=@./sample.mp4"
 ```
 
+保存先を指定するなら path クエリを付けます。 ./ を付けてもそのまま使えます。
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/upload?path=./archive/2026" \
+  -F "file=@./sample.mp4"
+```
+
+複数ファイルを 1 リクエストで送るならこうです。
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/upload?path=images/banner" \
+  -F "files=@./image-a.png" \
+  -F "files=@./image-b.png"
+```
+
+一覧取得はこうです。
+
+```bash
+curl http://localhost:8080/api/v1/files
+```
+
+一覧は JSON で返り、ディレクトリは isDirectory=true になります。
+
+ファイル削除は upload や一覧で返ってきた key をそのまま使えます。
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/files/sample.mp4
+```
+
+ディレクトリ削除は prefix を指定します。archive 配下があればまとめて消します。
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/files/archive
+```
+
 認証ありならヘッダーを足します。
 
 ```bash
@@ -68,7 +108,17 @@ curl -X POST http://localhost:8080/api/v1/upload \
   -F "file=@./sample.mp4"
 ```
 
-成功すると JSON で success, message, url, key が返ります。
+一覧や削除でも同じように X-Auth-Key を付ければ使えます。
+
+アップロード成功時は success, message, files が返ります。
+
+files の各要素には name, key, url, contentType が入ります。key と url には path 指定後の保存先が反映されます。単一アップロードでも files は配列です。
+
+PUBLIC_BASE_URL を設定すると、返却される url は S3_ENDPOINT ではなくその公開ドメインを基準に組み立てられます。
+
+一覧取得は success と files を返し、各 file には key, name, url, size, lastModified, isDirectory が入ります。
+
+削除は success, message, target, kind, deletedCount を返します。
 
 ## ドキュメント
 
@@ -77,7 +127,7 @@ curl -X POST http://localhost:8080/api/v1/upload \
 
 Try it out を使ってそのままアップロード確認もできます。
 
-openapi形式でBunny Shield API Guardianが使えるらしいのでやってみようかなと
+Bunny Shield API Guardianにopenapi.jsonぶん投げると使えるらしいのでやってみようかなと
 
 [BunnyCDN アフェリエイトリンク](<https://bunny.net?ref=hhdqsy3idp>)
 

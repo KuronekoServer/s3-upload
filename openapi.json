@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "S3 Upload API",
-    "version": "1.0.0",
-    "description": "S3互換ストレージへファイルをストリーミングアップロードするAPIです。ファイルはディスクに書き出さず直接アップロードされます。"
+    "version": "1.2.0",
+    "description": "S3互換ストレージへファイルをストリーミングアップロードし、一覧取得とファイルまたはディレクトリ削除を行える API です。アップロード時は path クエリで保存先ディレクトリを指定でき、ファイル名は変更されません。PUBLIC_BASE_URL を設定すると返却される url はその公開ドメインを基準に組み立てられます。"
   },
   "servers": [
     {
@@ -15,6 +15,10 @@
     {
       "name": "upload",
       "description": "Streaming file upload"
+    },
+    {
+      "name": "files",
+      "description": "List and delete files or directories"
     }
   ],
   "paths": {
@@ -23,13 +27,25 @@
         "tags": [
           "upload"
         ],
-        "summary": "Upload a file to S3-compatible storage",
-        "description": "multipart/form-data の file フィールドを受け取り、uploads/{filename} キーへストリーミングアップロードします。AUTH_ENABLED=true の場合は X-Auth-Key ヘッダーが必要です。",
-        "operationId": "uploadFile",
+        "summary": "Upload one or more files",
+        "description": "multipart/form-data の file または files フィールドを受け取り、path クエリで指定したディレクトリ配下へ元のファイル名のままストリーミングアップロードします。path 未指定または ./ の場合はバケット直下へ保存されます。files[] や同名 file フィールドの繰り返しも受け付けます。AUTH_ENABLED=true の場合は X-Auth-Key ヘッダーが必要です。",
+        "operationId": "uploadFiles",
         "security": [
           {},
           {
             "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "description": "アップロード先ディレクトリ。例: ./archive/2026 または archive/2026。未指定または ./ ならバケット直下に保存されます。",
+            "schema": {
+              "type": "string"
+            },
+            "example": "./archive/2026"
           }
         ],
         "requestBody": {
@@ -38,16 +54,33 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "file"
-                ],
                 "properties": {
                   "file": {
                     "type": "string",
                     "format": "binary",
-                    "description": "アップロードするファイル"
+                    "description": "単一ファイルのアップロード"
+                  },
+                  "files": {
+                    "type": "array",
+                    "description": "複数ファイルのアップロード",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
                   }
-                }
+                },
+                "anyOf": [
+                  {
+                    "required": [
+                      "file"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "files"
+                    ]
+                  }
+                ]
               }
             }
           }
@@ -61,12 +94,52 @@
                   "$ref": "#/components/schemas/UploadResponse"
                 },
                 "examples": {
-                  "success": {
+                  "single": {
                     "value": {
                       "success": true,
                       "message": "アップロードが完了しました",
-                      "url": "https://s3.example.com/bucket/uploads/video.mp4",
-                      "key": "uploads/video.mp4"
+                      "files": [
+                        {
+                          "name": "video.mp4",
+                          "key": "video.mp4",
+                          "url": "https://s3.example.com/bucket/video.mp4",
+                          "contentType": "video/mp4"
+                        }
+                      ]
+                    }
+                  },
+                  "withPath": {
+                    "value": {
+                      "success": true,
+                      "message": "アップロードが完了しました",
+                      "files": [
+                        {
+                          "name": "video.mp4",
+                          "key": "archive/2026/video.mp4",
+                          "url": "https://s3.example.com/bucket/archive/2026/video.mp4",
+                          "contentType": "video/mp4"
+                        }
+                      ]
+                    }
+                  },
+                  "multiple": {
+                    "value": {
+                      "success": true,
+                      "message": "2 件のアップロードが完了しました",
+                      "files": [
+                        {
+                          "name": "image-a.png",
+                          "key": "image-a.png",
+                          "url": "https://s3.example.com/bucket/image-a.png",
+                          "contentType": "image/png"
+                        },
+                        {
+                          "name": "image-b.png",
+                          "key": "image-b.png",
+                          "url": "https://s3.example.com/bucket/image-b.png",
+                          "contentType": "image/png"
+                        }
+                      ]
                     }
                   }
                 }
@@ -84,13 +157,19 @@
                   "missingFile": {
                     "value": {
                       "success": false,
-                      "message": "file フィールドが必要です"
+                      "message": "file または files フィールドが必要です"
                     }
                   },
                   "invalidContentType": {
                     "value": {
                       "success": false,
                       "message": "Content-Type は multipart/form-data である必要があります"
+                    }
+                  },
+                  "invalidFilename": {
+                    "value": {
+                      "success": false,
+                      "message": "有効なファイル名が必要です"
                     }
                   }
                 }
@@ -153,6 +232,225 @@
           }
         }
       }
+    },
+    "/api/v1/files": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "List files as JSON",
+        "description": "バケット内のファイル一覧を JSON で返します。ディレクトリエントリも isDirectory=true として含まれます。AUTH_ENABLED=true の場合は X-Auth-Key ヘッダーが必要です。",
+        "operationId": "listFiles",
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File list retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileListResponse"
+                },
+                "examples": {
+                  "success": {
+                    "value": {
+                      "success": true,
+                      "files": [
+                        {
+                          "key": "archive/",
+                          "name": "archive",
+                          "size": 0,
+                          "isDirectory": true
+                        },
+                        {
+                          "key": "video.mp4",
+                          "name": "video.mp4",
+                          "url": "https://s3.example.com/bucket/video.mp4",
+                          "size": 1048576,
+                          "lastModified": "2026-04-26T09:30:00Z",
+                          "isDirectory": false
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unauthorized": {
+                    "value": {
+                      "success": false,
+                      "message": "認証に失敗しました"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "List retrieval failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "listFailed": {
+                    "value": {
+                      "success": false,
+                      "message": "ファイル一覧の取得に失敗しました"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{key}": {
+      "delete": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Delete a file or directory",
+        "description": "指定された key がファイルなら単体削除し、ディレクトリ相当の prefix なら配下をまとめて削除します。末尾に / が付いている場合はディレクトリとして扱います。ネストしたパスや空白を含む場合は URL エンコードしてください。AUTH_ENABLED=true の場合は X-Auth-Key ヘッダーが必要です。",
+        "operationId": "deleteFileOrDirectory",
+        "security": [
+          {},
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "description": "削除対象のファイル key またはディレクトリ prefix。例: video.mp4 または archive",
+            "schema": {
+              "type": "string"
+            },
+            "example": "video.mp4"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Delete succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                },
+                "examples": {
+                  "fileDeleted": {
+                    "value": {
+                      "success": true,
+                      "message": "ファイルを削除しました",
+                      "target": "video.mp4",
+                      "kind": "file",
+                      "deletedCount": 1
+                    }
+                  },
+                  "directoryDeleted": {
+                    "value": {
+                      "success": true,
+                      "message": "ディレクトリを削除しました",
+                      "target": "archive/",
+                      "kind": "directory",
+                      "deletedCount": 3
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingKey": {
+                    "value": {
+                      "success": false,
+                      "message": "削除対象の key が必要です"
+                    }
+                  },
+                  "invalidKey": {
+                    "value": {
+                      "success": false,
+                      "message": "削除対象の key が不正です"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unauthorized": {
+                    "value": {
+                      "success": false,
+                      "message": "認証に失敗しました"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Delete failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "deleteFailed": {
+                    "value": {
+                      "success": false,
+                      "message": "ファイルの削除に失敗しました"
+                    }
+                  },
+                  "deleteDirectoryFailed": {
+                    "value": {
+                      "success": false,
+                      "message": "ディレクトリの削除に失敗しました"
+                    }
+                  },
+                  "checkFailed": {
+                    "value": {
+                      "success": false,
+                      "message": "削除対象の確認に失敗しました"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -165,13 +463,39 @@
       }
     },
     "schemas": {
+      "UploadFile": {
+        "type": "object",
+        "required": [
+          "name",
+          "key",
+          "url"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "video.mp4"
+          },
+          "key": {
+            "type": "string",
+            "example": "video.mp4"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://s3.example.com/bucket/video.mp4"
+          },
+          "contentType": {
+            "type": "string",
+            "example": "video/mp4"
+          }
+        }
+      },
       "UploadResponse": {
         "type": "object",
         "required": [
           "success",
           "message",
-          "url",
-          "key"
+          "files"
         ],
         "properties": {
           "success": {
@@ -182,14 +506,104 @@
             "type": "string",
             "example": "アップロードが完了しました"
           },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadFile"
+            }
+          }
+        }
+      },
+      "FileInfo": {
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "size",
+          "isDirectory"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "video.mp4"
+          },
+          "name": {
+            "type": "string",
+            "example": "video.mp4"
+          },
           "url": {
             "type": "string",
             "format": "uri",
-            "example": "https://s3.example.com/bucket/uploads/video.mp4"
+            "example": "https://s3.example.com/bucket/video.mp4"
           },
-          "key": {
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1048576
+          },
+          "lastModified": {
             "type": "string",
-            "example": "uploads/video.mp4"
+            "format": "date-time",
+            "example": "2026-04-26T09:30:00Z"
+          },
+          "isDirectory": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "FileListResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "files"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FileInfo"
+            }
+          }
+        }
+      },
+      "DeleteResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "message",
+          "target",
+          "kind",
+          "deletedCount"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "ファイルを削除しました"
+          },
+          "target": {
+            "type": "string",
+            "example": "video.mp4"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "file",
+              "directory"
+            ],
+            "example": "file"
+          },
+          "deletedCount": {
+            "type": "integer",
+            "example": 1
           }
         }
       },
@@ -206,7 +620,7 @@
           },
           "message": {
             "type": "string",
-            "example": "file フィールドが必要です"
+            "example": "file または files フィールドが必要です"
           }
         }
       }
